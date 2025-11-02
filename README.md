@@ -70,3 +70,7 @@ For extracting contact info from a URL:
 For extracting contact info from keywords:
 `python3 scraper.py -k "<KEYWORDS>"`
 > Example: `python3 scraper.py -k "Software Companies in Kathmandu"`
+
+
+# Saving the extracted Contact Info
+Append the above scripts with a `-l` flag and the info is saved at `<current_dir>/contact__<time>.json`
