@@ -1,0 +1,17 @@
+[11:00]
+task assigned: create a scraper that extracts contact info (phone numbers, email addresses etc.) from provided urls
+or keywords
+
+[14:13] 
+Wrote scraper.py with the following functionalities:
+	> extract emails from URLs passed via the (-u or --url) flag
+	TODO: extract contact number info
+
+[15:59]
+scraper.py handles keywords and extracts emails passed with the (-k or --keywords) flag
+	TODO: handle websites made w/ React (CSR is problematic for scrapers)
+
+[17:21]
+scraper.py scrapes phone numbers as well!
+React is handled
+

@@ -1,0 +1,11 @@
+[project]
+name = "scraper-day01"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "ipython>=9.6.0",
+    "requests>=2.32.5",
+    "selenium>=4.38.0",
+]
