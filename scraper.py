@@ -39,7 +39,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 save_dump = []
-SAVE_PATH = f"contact__{str(datetime.now())}.json"
+SAVE_PATH = f"contact_{str(datetime.now())}.json"
 
 # parser = argparse.ArgumentParser()
 # parser.add_argument("url", required=True, help="URL to scrape")
@@ -73,9 +73,6 @@ class Scraper:
         sitemap_res = requests.get(
             f"{self.url.rstrip('/')}/sitemap.xml", headers=headers
         )
-
-        # if sitemap_res.status_code == 301:
-        #     sitemap_res = requests.get(f"{}")
 
         if sitemap_res.status_code == 200:
             self.sitemap_exists = True
@@ -131,7 +128,9 @@ class Scraper:
 
         phone_pattern = re.compile(r"\b(?:\+?977|01)[\d\-\.\s]{5,}\d\b")
         phone_matches = phone_pattern.findall(text)
+        # !DEBUG
         print(phone_matches)
+
         for p in phone_matches:
             # normalize: remove non-digit characters
             normalized = re.sub(r"\D", "", p)
@@ -329,3 +328,4 @@ if __name__ == "__main__":
 
     else:
         print("Usage: Provide a URL with the -u flag or keywords with the -k flag")
+    

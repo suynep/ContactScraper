@@ -1,6 +1,7 @@
 # ContactScraper
 
 > IMPORTANT: requires `selenium` and `requests`
+> IMPORTANT: requires `Firefox` (selenium runs on ff)
 
 
 ## Running the script locally
