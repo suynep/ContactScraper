@@ -1,6 +1,6 @@
 from selenium import webdriver
+from colorama import init, Fore, Style
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
@@ -12,7 +12,9 @@ from datetime import datetime
 import urllib.parse
 from selenium.webdriver.firefox.options import Options
 import json
+from pprint import pprint
 
+init() # initialize colorama
 
 parser = argparse.ArgumentParser(
     prog="scraper.py",
@@ -20,6 +22,7 @@ parser = argparse.ArgumentParser(
     epilog="Contact me @ suyash@vrittechnologies.com",
     formatter_class=argparse.RawTextHelpFormatter,
 )
+
 
 parser.add_argument("-u", "--url", help="URL to scrape from", metavar="QUERY", type=str)
 parser.add_argument(
@@ -29,6 +32,15 @@ parser.add_argument(
     metavar="KEYWORDS",
     type=str,
 )
+
+parser.add_argument(
+    "-n",
+    "--number",
+    help="number of websites scrape from google maps. Defaults to 4",
+    metavar="NUMBER",
+    type=int,
+)
+
 parser.add_argument(
     "-l",
     "--log",
@@ -39,13 +51,22 @@ parser.add_argument(
 args = parser.parse_args()
 
 save_dump = []
-SAVE_PATH = f"contact_{str(datetime.now())}.json"
 
 # parser = argparse.ArgumentParser()
 # parser.add_argument("url", required=True, help="URL to scrape")
 
 
 class Scraper:
+    SAVE_PATH = f"contact_{str(datetime.now())}.json"
+    REACT_POINTERS = [
+        'id="root"',
+        "id='root'",
+        "[data-reactroot]",
+        "[data-reactid]",
+        "[data-react-root]",
+        "react",
+    ]
+
     def __init__(self, url):
         self.url = url
         self.content = ""
@@ -58,16 +79,15 @@ class Scraper:
         # Optionally, self.about_urls : list[str]
 
     def get(self):
+        print(Fore.BLUE + "*****-*****-*****" + Style.RESET_ALL)
+        print(Fore.GREEN + f"\nGetting Details of: {self.url}")
+        print(Fore.BLUE + "*****-*****-*****" + Style.RESET_ALL)
         headers = {"User-Agent": "curl/8.0", "Accept": "*/*"}
 
         try:
             res = requests.get(self.url, headers=headers)
         except requests.exceptions.ConnectionError:
             print(f"[Error]: Couldn't connect to {self.url}")
-            return
-
-        if 'id="root"' in res.text:
-            self.is_react = True
             return
 
         sitemap_res = requests.get(
@@ -80,11 +100,18 @@ class Scraper:
         if self.sitemap_exists:
             # match strings containing the `about` in their paths
             self.about_urls = re.findall(
-                "(?:https?:\/\/)?(?:www\.)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/\S*(?:about|contact)\S*",
+                r"(?:https?://)?(?:www\.)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}(?:/[a-zA-Z0-9._~:/?#\[\]@!$&()*+,;=-]*)?(?:about|contact)(?:/[a-zA-Z0-9._~:/?#\[\]@!$&()*+,;=-]*)?",
                 sitemap_res.text,
             )
 
-        print(res.status_code)
+            self.about_urls = list(set(self.about_urls)) # prevents duplication
+
+        for pointer in Scraper.REACT_POINTERS:
+            if pointer in res.text:
+                self.is_react = True
+                return
+
+        print(f"DEBUG: {self.url} returned {res.status_code}")
         if res.status_code == 200:
             if "captcha" in res.text:
                 self.captcha_exists = True
@@ -114,14 +141,12 @@ class Scraper:
                 re.IGNORECASE,
             )
 
-
             match = email_pattern.findall(text)
 
         else:
             return
 
         if match is not None:
-            # print(match)
             for m in match:
                 if m not in self.emails:
                     self.emails.append(m)
@@ -129,7 +154,7 @@ class Scraper:
         phone_pattern = re.compile(r"\b(?:\+?977|01)[\d\-\.\s]{5,}\d\b")
         phone_matches = phone_pattern.findall(text)
         # !DEBUG
-        print(phone_matches)
+        pprint(f"DEBUG: {phone_matches}")
 
         for p in phone_matches:
             # normalize: remove non-digit characters
@@ -148,8 +173,10 @@ class Scraper:
         !IMPORTANT: use `self.get()` before this function
         """
         if self.sitemap_exists:
-            print(self.about_urls)
+            print("DEBUG: Sitemap Exists, fetching about/contact pages...")
             for url in self.about_urls:
+                if self.is_react:
+                    self.handle_react(url)
                 self._match_email_pattern(url)
 
         email_pattern = re.compile(
@@ -157,12 +184,10 @@ class Scraper:
             re.IGNORECASE,
         )
 
-        match = re.findall(
-            email_pattern, self.content
-        )
+        match = re.findall(email_pattern, self.content)
 
         if match is not None:
-            print(match)
+            print(f"DEBUG: Matches\n{match}")
             for m in match:
                 if m not in self.emails:
                     self.emails.append(m)
@@ -180,22 +205,37 @@ class Scraper:
             ):
                 self.phone_numbers.append(normalized)
 
-    def handle_react(self):
+    def handle_popup(self):
+        """
+        Some websites load a popup on load
+        This obstructs our ability to scrape for contact details
+        Thus, handled separately
+        """
+        pass
+
+    def handle_hyperlinks(self):
+        """
+        Hyperlinks like "Contact Us", "About Us" etc. may exist,
+        despite the site not having sitemap.xml
+        """
+        pass
+
+    def handle_react(self, url):
         """
         due to react's CSR, body isn't loaded fully, and thus requests.get() cannot fetch the
         required text. This method accounts for this.
         """
         if self.is_react:
             options = Options()
-            options.headless = True  # Run in headless mode
+            options.add_argument("--headless")
             driver = webdriver.Firefox(options=options)
             try:
-                driver.get(self.url)
+                driver.get(url)
                 time.sleep(10)
                 # driver.implicitly_wait(10)
                 # Get all visible text from the page
                 page_text = driver.find_element(By.TAG_NAME, "body").text
-                print(page_text)
+                # print(page_text)
 
                 # Optional: also extract all hrefs for mailto links
                 all_links = [
@@ -257,7 +297,7 @@ class Scraper:
     def run(self):
         self.get()
         self.extract_email()
-        self.handle_react()
+        self.handle_react(self.url)
 
         # !Debug
         print(f"DEBUG: {self.get_emails()}")
@@ -265,11 +305,14 @@ class Scraper:
 
 
 class KeywordsExtractor:
-    def __init__(self, keywords):
+    def __init__(self, keywords, n=4):
         self.keywords = keywords
         self.url = f"https://google.com/maps/search/{urllib.parse.quote_plus(self.keywords, safe='')}?hl=en"
-        self.driver = webdriver.Firefox()
+        options = Options()
+        options.add_argument("--headless")
+        self.driver = webdriver.Firefox(options=options)
         self.webaddresses = []
+        self.num = n # no. of websites to scrape from maps
 
     def open(self):
         self.driver.get(self.url)
@@ -282,18 +325,59 @@ class KeywordsExtractor:
                     (By.XPATH, "//a[@data-value = 'Website']")
                 )
             )
-            print("Element found and loaded.")
-
-            website_elements = self.driver.find_elements(
-                By.XPATH, "//a[@data-value = 'Website']"
-            )
-
-            for elem in website_elements:
-                # print(elem.get_attribute("href"))
-                self.webaddresses.append(elem.get_attribute("href"))
-
+            print("DEBUG: Element found and loaded.")
+            
+            scrollable_div = self.driver.find_element(By.XPATH, '//div[@role="feed"]')
+            seen_urls = set()  # Track unique URLs
+            
+            while len(seen_urls) < self.num:
+                # Find all website elements
+                elements = self.driver.find_elements(
+                    By.XPATH, "//a[@data-value = 'Website']"
+                )
+                
+                # Extract unique URLs
+                for ele in elements:
+                    if len(seen_urls) >= self.num:
+                        break
+                    url = ele.get_attribute("href")
+                    if url and url not in seen_urls:
+                        seen_urls.add(url)
+                
+                print(f"INFO: Found {len(seen_urls)} unique websites so far...")
+                
+                # If we haven't reached the target, scroll more
+                if len(seen_urls) < self.num:
+                    # Get current scroll position
+                    current_scroll = self.driver.execute_script(
+                        "return arguments[0].scrollTop", scrollable_div
+                    )
+                    
+                    # Scroll down
+                    self.driver.execute_script(
+                        "arguments[0].scrollTop += 500", scrollable_div
+                    )
+                    
+                    # Wait for new content to load
+                    time.sleep(1)
+                    
+                    # Check if we've reached the bottom (no new scroll happened)
+                    new_scroll = self.driver.execute_script(
+                        "return arguments[0].scrollTop", scrollable_div
+                    )
+                    
+                    if current_scroll == new_scroll:
+                        print("INFO: Reached end of scrollable content.")
+                        break
+            
+            # Add the URLs to webaddresses
+            self.webaddresses.extend(list(seen_urls)[:self.num])
+            print(f"INFO: Collected {len(self.webaddresses)} website URLs.")
+            
         except TimeoutException:
-            print("Website Element not found within the specified time.")
+            print("ERROR: Website Element not found within the specified time.")
+        finally:
+            self.driver.quit()
 
     def get_webaddresses(self):
         return self.webaddresses
@@ -302,7 +386,7 @@ class KeywordsExtractor:
         self.open()
         self.find_websites()
         # !Debug
-        print(self.webaddresses)
+        print(f"DEBUG: {self.webaddresses}")
 
 
 if __name__ == "__main__":
@@ -311,21 +395,28 @@ if __name__ == "__main__":
         scraper.run()
         scraper.update_save()
         if args.log:
-            with open(SAVE_PATH, "w") as fp:
+            with open(Scraper.SAVE_PATH, "w") as fp:
                 json.dump(save_dump, fp)
+            print(f"\nINFO: Details saved at {Scraper.SAVE_PATH}")
 
     elif args.keywords:
         kwex = KeywordsExtractor(args.keywords)
+        if args.number:
+            kwex = KeywordsExtractor(args.keywords, n=args.number)
         kwex.run()
 
         for wa in kwex.webaddresses:
             scraper = Scraper(wa)
             scraper.run()
             scraper.update_save()
-            if args.log:
-                with open(SAVE_PATH, "w") as fp:
-                    json.dump(save_dump, fp)
+
+        helper_file_name = args.keywords.replace(" ", "_")
+        SAVE_PATH = f"contact_[{helper_file_name}]_{str(datetime.now())}.json"
+
+        if args.log:
+            with open(SAVE_PATH, "w") as fp:
+                json.dump(save_dump, fp)
+            print(f"\nINFO: Details saved at {SAVE_PATH}")
 
     else:
         print("Usage: Provide a URL with the -u flag or keywords with the -k flag")
-    
