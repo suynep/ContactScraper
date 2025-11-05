@@ -618,7 +618,7 @@ class MapsScraper:
         driver = None
         try:
             options = Options()
-            # options.add_argument("--headless")
+            options.add_argument("--headless")
             driver = webdriver.Firefox(options=options)
             driver.get(self.search_url)
             driver.maximize_window()

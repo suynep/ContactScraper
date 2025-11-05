@@ -30,12 +30,12 @@ uv sync
 ```
 
 For extracting contact info from a URL:
-`uv run scraper.py -u "<URL>"`
-> Example: `uv run scraper.py -u "https://ku.edu.np"`
+`uv run scraper_v3.py -u "<URL>"`
+> Example: `uv run scraper_v3.py -u "https://ku.edu.np"`
 
 For extracting contact info from keywords:
-`uv run scraper.py -k "<KEYWORDS>"`
-> Example: `uv run scraper.py -k "Software Companies in Kathmandu"`
+`uv run scraper_v3.py -k "<KEYWORDS>"`
+> Example: `uv run scraper_v3.py -k "Software Companies in Kathmandu"`
 
 #### Windows
 
@@ -65,13 +65,29 @@ pip3 install -r requirements.txt     # or pip instead of pip3, whatever it's cal
 ```
 
 For extracting contact info from a URL:
-`python3 scraper.py -u "<URL>"`
-> Example: `python3 scraper.py -u "https://ku.edu.np"`
+`python3 scraper_v3.py -u "<URL>"`
+> Example: `python3 scraper_v3.py -u "https://ku.edu.np"`
 
 For extracting contact info from keywords:
-`python3 scraper.py -k "<KEYWORDS>"`
-> Example: `python3 scraper.py -k "Software Companies in Kathmandu"`
+`python3 scraper_v3.py -k "<KEYWORDS>"`
+> Example: `python3 scraper_v3.py -k "Software Companies in Kathmandu"`
 
 
 # Saving the extracted Contact Info
-Append the above scripts with a `-l` flag and the info is saved at `<current_dir>/contact__<time>.json`
+## CSV and JSON Files
+Append the above scripts with a `-l` flag and the info is saved at `<current_dir>/json_data/contact__<time>.json` or `.csv`
+
+# Limit Output Numbers
+Using the `-n` flag, you can limit the number of websites scraped; for instance:
+
+> Example: `python3 scraper_v3.py -k "Software Companies in Kathmandu" -n 10`
+
+Above example Scrapes only 10 websites
+
+# GUI
+**UNDER DEVELOPMENT**
+You can run the basic Tk based GUI using 
+
+`python3 scraper_multi_gui.py`
+
+
