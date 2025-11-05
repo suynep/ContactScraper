@@ -21,6 +21,15 @@ curl -LsSf https://astral.sh/uv/install.sh | sh     # install uv
 ```
 > You may need to restart your shell for `uv` to start working properly
 
+#### Windows
+
+#### `uv` installation
+
+In PowerShell, run:
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
 ##### Local setup
 
 ```bash
@@ -37,22 +46,11 @@ For extracting contact info from keywords:
 `uv run scraper_v3.py -k "<KEYWORDS>"`
 > Example: `uv run scraper_v3.py -k "Software Companies in Kathmandu"`
 
-#### Windows
-
-#### `uv` installation
-
-In PowerShell, run:
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-
-Now, clone and run `interactor.py` after running `uv sync` in the cloned local repo.
-
 
 ### Using `pip`
 
 
-#### Linux/macOS
+#### Linux/macOS and Windows too(?)
 
 ##### Local setup + running
 
@@ -88,6 +86,10 @@ Above example Scrapes only 10 websites
 **UNDER DEVELOPMENT**
 You can run the basic Tk based GUI using 
 
-`python3 scraper_multi_gui.py`
+`uv run scraper_multi_gui.py`
+
+OR, if running through `pip`,
+
+`python3 run scraper_multi_gui.py`
 
 

@@ -27,12 +27,14 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 import urllib3
 import warnings
+import pdb
 
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 # disable Insecure Connection Warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 init()  # Initialize colorama
 
+DEBUGGER=False
 
 # ==============================
 # Configuration & Constants
@@ -92,7 +94,8 @@ class Patterns:
         re.VERBOSE | re.IGNORECASE,
     )
     # THE following regex matches 3-digit area codes
-    OTHER_PHONE_NP = re.compile(r""" 
+    OTHER_PHONE_NP = re.compile(
+        r""" 
         \b
         (?:\+977[-\.\s]?)?     # +977
         (?:0[-\.\s]?)?         # leading 0
@@ -109,7 +112,9 @@ class Patterns:
             # Just match 8 digits total, starting with valid area code
         )
         \b
-    """, re.VERBOSE | re.IGNORECASE)
+    """,
+        re.VERBOSE | re.IGNORECASE,
+    )
 
     ABOUT_PAGE = re.compile(
         r"(?:https?://)?(?:www\.)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
@@ -367,9 +372,9 @@ class ContactScraper:
         for email in Patterns.EMAIL.findall(html):
             self.emails.add(email.lower())
         # Phones
-        for match in Patterns.PHONE_NP.finditer(html):
-            if norm := normalize_phone(match.group()):
-                self.phones.add(norm)
+        # for match in Patterns.PHONE_NP.finditer(html):
+        #     if norm := normalize_phone(match.group()):
+        #         self.phones.add(norm)
 
     def extract_from_contact_sections(self, html: str) -> set:
         soup = BeautifulSoup(html, "html.parser")
@@ -398,6 +403,15 @@ class ContactScraper:
                     norm = normalize_phone(match.group())
                     if norm:
                         self.phones.add(norm)
+
+                for match in Patterns.EMAIL.finditer(tag.get_text()):
+                    norm = match.group()
+                    self.emails.add(norm)
+
+                for match in Patterns.EMAIL_STRICT.finditer(tag.get_text()):
+                    norm = match.group()
+                    self.emails.add(norm)
+
         # 2. Bonus: Footer is gold
         footer = soup.find("footer")
         if footer:
@@ -417,6 +431,18 @@ class ContactScraper:
                 norm = normalize_phone(match.group())
                 if norm:
                     self.phones.add(norm)
+            for match in Patterns.EMAIL.finditer(footer.get_text()):
+                norm = match.group()
+                self.emails.add(norm)
+            for match in Patterns.EMAIL_STRICT.finditer(footer.get_text()):
+                norm = match.group()
+                self.emails.add(norm)
+
+        if DEBUGGER == True:
+            print(self.emails)
+            print(self.phones)
+            pdb.set_trace()
+
         return phones
 
     def extract_from_text(self, text: str):
@@ -575,6 +601,23 @@ class ContactScraper:
         ]
         return any(re.search(pattern, html, re.IGNORECASE) for pattern in checks)
 
+    def clean_emails(self):
+        gibberish = ["example", "yoursite", ".png", ".svg", ".jpg", ".jpeg", ".gif"]
+        for email in self.emails.copy():
+            for g in gibberish:
+                if g in email:
+                    self.emails.remove(email)
+
+    def debug_phone_regex(self):
+        for phone in self.phones:
+            print(phone)
+            # print(f"NEW_NEW_PHONE regex:\t\t{bool(Patterns.NEW_NEW_PHONE_NP.search(phone))}")
+            # print(f"NEW_PHONE regex:\t\t{bool(Patterns.NEW_PHONE_NP.search(phone))}")
+            # print(f"PHONE regex:\t\t{bool(Patterns.PHONE_NP.search(phone))}")
+            print(
+                f"OTHER_PHONE regex:\t\t{bool(Patterns.OTHER_PHONE_NP.search(phone))}"
+            )
+
     def run(self) -> Dict:
         log_info(f"Scraping: {self.url}")
         if not self.fetch_page():
@@ -588,6 +631,10 @@ class ContactScraper:
                 "Static Scraping didn't return proper results\n\tTrying Dynamic Fetching"
             )
             self.scrape_dynamic(self.url, forced=True)
+
+        self.clean_emails()
+        self.debug_phone_regex()
+
         return {
             "website": self.url,
             "emails": sorted(self.emails) or "Not found",
@@ -607,7 +654,7 @@ class MapsScraper:
         self.inpfile = inpfile
         if self.inpfile:
             try:
-                with open(self.inpfile, 'r') as f:
+                with open(self.inpfile, "r") as f:
                     urls = f.readlines()
                     self.limit = len(urls)
                     self.websites.update(urls)
@@ -694,7 +741,11 @@ def main():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-u", "--url", help="Single website URL to scrape")
     group.add_argument("-k", "--keywords", help="Keywords to search in Google Maps")
-    group.add_argument("-f", "--file", help="Scrapes websites in the file containing URLs in each new line")
+    group.add_argument(
+        "-f",
+        "--file",
+        help="Scrapes websites in the file containing URLs in each new line",
+    )
     parser.add_argument(
         "-n",
         "--number",
@@ -747,7 +798,7 @@ def main():
             log_error("No websites found.")
             return
         results = []
-        MAX_WORKERS = 12 # Tune: 5–15 safe for most home IPs
+        MAX_WORKERS = 12  # Tune: 5–15 safe for most home IPs
 
         def subscraper(site: str):
             site = site.strip()
